@@ -1,0 +1,42 @@
+package io;
+
+import static org.junit.jupiter.api.Assertions.*;
+import java.nio.file.Path;
+import java.nio.file.Files;
+import org.junit.jupiter.api.Test;
+import org.junit.jupiter.api.io.TempDir;
+import no.ntnu.Board;
+import no.ntnu.Tile;
+
+class BoardJsonDaoTest {
+    @TempDir Path tempDir;
+
+    @Test
+    void loadSimpleBoard(@TempDir Path dir) throws Exception {
+        String json = """
+        {
+          "tiles": [
+            { "id": 1, "nextTile": 2 },
+            { "id": 2 }
+          ]
+        }
+        """;
+        Path file = dir.resolve("board.json");
+        Files.writeString(file, json);
+
+        Board board = new BoardJsonDao().loadBoard(file);
+        assertNotNull(board.getFirstTile());
+        assertEquals(1, board.getFirstTile().getId());
+        Tile t2 = board.getTileById(2);
+        assertSame(t2, board.getFirstTile().getNextTile());
+        assertNull(t2.getNextTile());
+    }
+
+    @Test
+    void loadMalformedJson(@TempDir Path dir) throws Exception {
+        Path file = dir.resolve("bad.json");
+        Files.writeString(file, "{ not valid json }");
+        BoardJsonDao dao = new BoardJsonDao();
+        assertThrows(com.google.gson.JsonSyntaxException.class, () -> dao.loadBoard(file));
+    }
+}
