@@ -1,11 +1,11 @@
-package no.ntnu.ui;
+package no.ntnu.Archive;
 
 import javafx.geometry.Point2D;
 import javafx.scene.canvas.Canvas;
 import javafx.scene.canvas.GraphicsContext;
 import javafx.scene.paint.Color;
 import no.ntnu.Board;
-import no.ntnu.Tile;
+import no.ntnu.tile.Tile;
 
 /**
  * Draws the board grid
@@ -22,7 +22,7 @@ public class BoardView {
     public BoardView(Canvas canvas, Board board) {
         this.canvas = canvas;
         this.board = board;
-        this.tileSize = canvas.getWidth() / cols;
+        this.tileSize = canvas.getWidth() / cols;   
     }
 
     /**

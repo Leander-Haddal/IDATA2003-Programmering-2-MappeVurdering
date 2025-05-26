@@ -1,9 +1,9 @@
 import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
-import no.ntnu.LadderAction;
 import no.ntnu.Player;
-import no.ntnu.Tile;
+import no.ntnu.Archive.LadderAction;
+import no.ntnu.tile.Tile;
 
 /**
  * Tests for the Tile class.

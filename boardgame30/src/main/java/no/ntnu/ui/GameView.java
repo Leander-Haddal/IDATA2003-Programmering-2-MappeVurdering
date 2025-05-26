@@ -1,116 +1,117 @@
 package no.ntnu.ui;
 
-import javafx.application.Platform;
-import javafx.geometry.Point2D;
-import javafx.scene.canvas.Canvas;
-import javafx.scene.canvas.GraphicsContext;
-import javafx.scene.control.Button;
-import javafx.scene.control.Label;
+import javafx.scene.control.Alert;
+import javafx.scene.control.Alert.AlertType;
 import javafx.scene.layout.BorderPane;
-import javafx.scene.paint.Color;
-import no.ntnu.BoardGame;
+import javafx.scene.layout.VBox;
 import no.ntnu.Player;
-import no.ntnu.Tile;
-import no.ntnu.observer.GameObserver;
+import no.ntnu.tile.Tile;
+
+import java.util.ArrayList;
 import java.util.List;
 
 /**
- * High-level UI combining board, tokens, and controls
+ * Layout root pane with board view and dynamic player panes
  */
-public class GameView extends BorderPane implements GameObserver {
-    private final BoardGame model;
-    private final BoardView boardView;
-    private final Button rollButton = new Button("Roll Dice");
-    private final Label statusLabel = new Label();
+public class GameView extends BorderPane {
+    private final VBox leftPlayerColumn = new VBox(10);
+    private final VBox rightPlayerColumn = new VBox(10);
+    private final MonopolyBoardView boardView;
+    private final List<PlayerPane> playerPanes = new ArrayList<>();
+    private Tile offeredProperty;
 
     /**
-     * Create view bound to the given game model
+     * Constructs the game view for given number of players and applies stylesheet
+     * @param playerCount number of player panes to display (2-4)
      */
-    public GameView(BoardGame model) {
-        this.model = model;
-        Canvas canvas = new Canvas(600, 600);
-        this.boardView = new BoardView(canvas, model.getBoard());
-        setTop(statusLabel);
-        setCenter(boardView.getCanvas());
-        setBottom(rollButton);
-        boardView.drawBoard();
+    public GameView(int playerCount) {
+        getStylesheets().add(getClass().getResource("/style.css").toExternalForm());
+        boardView = new MonopolyBoardView("/images/Monopol.jpg", 600);
+        setCenter(boardView);
+        setLeft(leftPlayerColumn);
+        setRight(rightPlayerColumn);
 
-        // initial turn display
-        Player first = model.getPlayers().isEmpty() ? null : model.getPlayers().get(0);
-        if (first != null) {
-            statusLabel.setText(first.getName() + "’s turn – roll the dice");
+        for (int i = 0; i < playerCount; i++) {
+            PlayerPane pane = new PlayerPane();
+            playerPanes.add(pane);
+            if (i % 2 == 0) {
+                leftPlayerColumn.getChildren().add(pane);
+            } else {
+                rightPlayerColumn.getChildren().add(pane);
+            }
         }
+    }
 
-        // disable until playTurn triggers onTurnChanged
-        rollButton.setDisable(false);
+    /** 
+     * @return the board view for drawing tokens 
+     */
+    public MonopolyBoardView getBoardView() {
+        return boardView;
+    }
+
+    /** 
+     * @param index zero-based index of player pane 
+     * @return corresponding PlayerPane 
+     */
+    public PlayerPane getPlayerPane(int index) {
+        return playerPanes.get(index);
+    }
+
+    /** 
+     * @param players list of players to display tokens for 
+     */
+    public void drawTokens(List<Player> players) {
+        boardView.drawTokens(players);
     }
 
     /**
-     * Return the roll-dice button for controller
+     * Highlight the active player pane by index
+     * @param index zero-based active pane index
      */
-    public Button getRollButton() {
-        return rollButton;
-    }
-
-    /**
-     * Called when a player has moved
-     */
-    @Override
-    public void onPlayerMoved(Player player, Tile toTile) {
-        Platform.runLater(() -> {
-            boardView.drawBoard();
-            drawTokens();
-
-            int roll = model.getLastRoll();
-            List<Player> players = model.getPlayers();
-            int idx = players.indexOf(player);
-            int nextIdx = (idx + 1) % players.size();
-            String nextName = players.get(nextIdx).getName();
-
-            statusLabel.setText(
-                player.getName() + " rolled " + roll + ". Next: " + nextName + "’s turn"
-            );
-            rollButton.setDisable(true);
-        });
-    }
-
-    /**
-     * Called when it becomes the next players turn
-     */
-    @Override
-    public void onTurnChanged(Player next) {
-        Platform.runLater(() -> {
-            statusLabel.setText(next.getName() + "’s turn – roll the dice");
-            rollButton.setDisable(false);
-        });
-    }
-
-    /**
-     * Called when the game finishes
-     */
-    @Override
-    public void onGameFinished(Player winner) {
-        Platform.runLater(() -> {
-            statusLabel.setText("Winner: " + winner.getName());
-            rollButton.setDisable(true);
-        });
-    }
-
-    /**
-     * Draw all player tokens at their current tiles
-     */
-    private void drawTokens() {
-        GraphicsContext gc = boardView.getCanvas().getGraphicsContext2D();
-        double size = boardView.getTileSize();
-        for (Player p : model.getPlayers()) {
-            Point2D pos = boardView.getTilePosition(p.getCurrentTileId());
-            gc.setFill(Color.RED);
-            gc.fillOval(
-                pos.getX() + size * 0.25,
-                pos.getY() + size * 0.25,
-                size * 0.5,
-                size * 0.5
-            );
+    public void setActivePlayerPane(int index) {
+        for (PlayerPane pane : playerPanes) {
+            pane.getStyleClass().remove("active");
         }
+        playerPanes.get(index).getStyleClass().add("active");
+    }
+
+    /**
+     * Store the currently offered property for purchase
+     */
+    public void setOfferedProperty(Tile property) {
+        this.offeredProperty = property;
+    }
+
+    /**
+     * @return the tile currently offered for purchase
+     */
+    public Tile getOfferedProperty() {
+        return offeredProperty;
+    }
+
+    /**
+     * Clear any outstanding purchase offer
+     */
+    public void clearPropertyOffer() {
+        this.offeredProperty = null;
+    }
+
+    /**
+     * Show a dialog announcing the winner
+     * @param winnerName name of winning player
+     */
+    public void showWinnerDialog(String winnerName) {
+        Alert alert = new Alert(AlertType.INFORMATION);
+        alert.setTitle("Game Over");
+        alert.setHeaderText(null);
+        alert.setContentText("The winner is " + winnerName + "!");
+        alert.showAndWait();
+    }
+
+    /**
+     * return number of player panes
+     */
+    public int getPlayerCount() {
+        return playerPanes.size();
     }
 }

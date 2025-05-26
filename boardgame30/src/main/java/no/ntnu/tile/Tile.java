@@ -1,4 +1,6 @@
-package no.ntnu;
+package no.ntnu.tile;
+
+import no.ntnu.action.TileAction;
 
 /**
  * Represents a single Tile on the board. Each Tile has:
@@ -9,7 +11,7 @@ package no.ntnu;
 public class Tile {
     private final int id;
     private Tile nextTile;
-    private TileAction action; // Could be null if no special action
+    private TileAction action; 
 
     public Tile(int id) {
         this.id = id;
@@ -33,5 +35,17 @@ public class Tile {
 
     public void setAction(TileAction action) {
         this.action = action;
+    }
+
+    public String getName() {
+        return "Tile " + id;
+    }
+
+    public int getRent() {
+        return 0;
+    }
+
+    public int getPrice() {
+        return 0;
     }
 }

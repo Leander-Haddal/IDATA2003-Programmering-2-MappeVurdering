@@ -1,9 +1,8 @@
-package no.ntnu.factory;
+package no.ntnu.Archive;
 
 import no.ntnu.Board;
-import no.ntnu.Tile;
 import no.ntnu.factory.TileActionFactory;
-import no.ntnu.io.BoardJsonDao;
+import no.ntnu.tile.Tile;
 import no.ntnu.exception.InvalidDataException;
 import com.google.gson.JsonSyntaxException;
 import java.nio.file.Path;
@@ -12,10 +11,12 @@ import java.io.IOException;
 /**
  * Central factory for creating Board instances.
  */
-public class BoardFactory {
+public final class BoardFactory {
+    private BoardFactory() {
+    }
 
     /**
-     * Create a default 10-tile board with a ladder from 3 to 7.
+     * Create a default 10-tile board
      */
     public static Board createDefaultBoard() {
         Board board = new Board();
@@ -30,7 +31,7 @@ public class BoardFactory {
         }
         try {
             current = board.getTileById(3);
-            current.setAction(TileActionFactory.create("LadderAction", 7, board));
+            current.setAction(TileActionFactory.create("LadderAction", 7, board, /*pass game*/ null));
         } catch (InvalidDataException e) {
         }
         return board;
@@ -40,8 +41,6 @@ public class BoardFactory {
      * Load a board configuration from a JSON file.
      * @param jsonPath path to JSON
      * @return the loaded Board
-     * @throws IOException if file cannot be read
-     * @throws InvalidDataException if JSON is invalid
      */
     public static Board fromJson(Path jsonPath)
             throws IOException, InvalidDataException {

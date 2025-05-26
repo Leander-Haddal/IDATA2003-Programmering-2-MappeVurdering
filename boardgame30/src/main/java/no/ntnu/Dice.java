@@ -4,7 +4,7 @@ import java.util.ArrayList;
 import java.util.List;
 
 /**
- * Represents a collection of dice (e.g., two 6-sided dice).
+ * Represents a collection of dice (two 6-sided dice).
  */
 public class Dice {
     private final List<Die> dice;

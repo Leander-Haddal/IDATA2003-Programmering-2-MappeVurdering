@@ -9,7 +9,7 @@ public class Die {
     private final Random random;
 
     public Die() {
-        this(6); // Default to 6 faces
+        this(6);
     }
 
     public Die(int faces) {

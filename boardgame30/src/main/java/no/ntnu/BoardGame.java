@@ -1,194 +1,293 @@
 package no.ntnu;
 
+import java.util.*;
 import no.ntnu.observer.GameObserver;
-import java.util.ArrayList;
-import java.util.List;
+import no.ntnu.tile.Tile;
+import no.ntnu.tile.UtilityTile;
+import no.ntnu.tile.PropertyTile;
+import no.ntnu.tile.RailroadTile;
+import no.ntnu.action.TileAction;
 
 /**
- * Central class controlling the gameplay.
- * Supports observers, exposing board, players, and turn logic.
+ * Central class controlling Monopoly gameplay.
  */
 public class BoardGame {
-    private final Board board;
     private final Dice dice;
+    private Board board;
     private final List<Player> players = new ArrayList<>();
     private final List<GameObserver> observers = new ArrayList<>();
-
-    private int roundNumber;
-    private boolean finished;
-    private int lastRoll;
     private int currentPlayerIndex = 0;
+    private boolean finished = false;
+    private Player winner = null;
+    private int lastRoll;
 
-    /**
-     * Create a game on the given board with the given dice.
-     */
-    public BoardGame(Board board, Dice dice) {
-        this.board = board;
+    public BoardGame(Dice dice) {
         this.dice = dice;
-        this.roundNumber = 0;
-        this.finished = false;
     }
 
-    /**
-     * Return the game’s board.
-     */
-    public Board getBoard() {
-        return board;
+    public void setBoard(Board board) {
+        this.board = board;
     }
 
-    /**
-     * Return the most recent dice roll.
-     */
+    public void addObserver(GameObserver observer) {
+        observers.add(observer);
+    }
+
+    public List<Player> getPlayers() {
+        return Collections.unmodifiableList(players);
+    }
+
     public int getLastRoll() {
         return lastRoll;
     }
 
-    /**
-     * Return the player whose turn it currently is.
-     */
     public Player getCurrentPlayer() {
         return players.get(currentPlayerIndex);
     }
 
-    /**
-     * Return the list of players in playing order.
-     */
-    public List<Player> getPlayers() {
-        return players;
+    public int getCurrentPlayerIndex() {
+        return currentPlayerIndex;
     }
 
-    /**
-     * Return how many rounds have been played.
-     */
-    public int getRoundNumber() {
-        return roundNumber;
-    }
-
-    /**
-     * Return true if someone has reached the last tile.
-     */
-    public boolean isFinished() {
-        return finished;
-    }
-
-    /**
-     * Add a player to the game (starts on first tile).
-     */
     public void addPlayer(Player player) {
         player.setCurrentTile(board.getFirstTile());
         players.add(player);
     }
 
     /**
-     * Register an observer to receive game events.
+     * Ends current turn and advances to next, handling skips.
      */
-    public void addObserver(GameObserver obs) {
-        observers.add(obs);
+    public void nextTurn() {
+        currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+        Player next = players.get(currentPlayerIndex);
+        if (next.isSkipNextTurn()) {
+            next.setSkipNextTurn(false);
+            notifyPlayerSkipped(next);
+            currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
+        }
     }
 
     /**
-     * Unregister a previously registered observer.
+     * Attempt to purchase a tile for current player.
      */
-    public void removeObserver(GameObserver obs) {
-        observers.remove(obs);
-    }
-
-    /**
-     * Execute one turn: roll for the current player, move them, notify,
-     * then advance to the next player.
-     */
-    public void playTurn() {
-        if (finished) return;
-
-        Player player = getCurrentPlayer();
-        int roll = dice.rollAll();
-        this.lastRoll = roll;
-        movePlayer(player, roll);
-
-        // Check for win
-        if (player.getCurrentTile() == board.getLastTile()) {
-            finished = true;
-            notifyGameFinished(player);
+    public void buyProperty(Player player, Tile tile) {
+        if (player != getCurrentPlayer()) {
             return;
         }
-
-        // Advance to next player
-        currentPlayerIndex = (currentPlayerIndex + 1) % players.size();
-        notifyTurnChanged(getCurrentPlayer());
-    }
-
-    // NEW: Let observers know whose turn is next
-    private void notifyTurnChanged(Player next) {
-        for (GameObserver obs : observers) {
-            obs.onTurnChanged(next);
+        int price = tile.getPrice();
+        if (player.getBalance() < price) {
+            return;
         }
+        player.adjustBalance(-price);
+        if (tile instanceof PropertyTile pt) {
+            pt.setOwner(player);
+        } else if (tile instanceof RailroadTile rt) {
+            rt.setOwner(player);
+        } else if (tile instanceof UtilityTile ut) {
+            ut.setOwner(player);
+        } else {
+            return;
+        }
+        player.addOwned(tile);
+        notifyTileAction(player, "PurchaseAction", tile);
     }
 
-    /**
-     * Play one full round: each player rolls, moves, and triggers actions.
-     */
-    public void playRound() {
-        roundNumber++;
-        for (Player player : players) {
-            if (finished) break;
-
-            int roll = dice.rollAll();
-            this.lastRoll = roll;
-            movePlayer(player, roll);
-
-            if (player.getCurrentTile() == board.getLastTile()) {
-                finished = true;
-                notifyGameFinished(player);
-                break;
+    public void playTurn() {
+        if (finished) return;
+        Player player = getCurrentPlayer();
+        
+        if (player.isSkipNextTurn()) {
+            player.setSkipNextTurn(false);
+            notifyPlayerSkipped(player);
+            nextTurn();
+            return;
+        }
+        
+        int die1 = dice.getDice().get(0).roll();
+        int die2 = dice.getDice().get(1).roll();
+        lastRoll = die1 + die2;
+        notifyDiceRoll(player, die1, die2);
+        
+        if (player.isInJail()) {
+            if (!handleJailTurn(player, die1, die2)) {
+                return;
             }
         }
-    }
-
-    /**
-     * Return the first player on the last tile, or null if none.
-     */
-    public Player getWinner() {
-        Tile last = board.getLastTile();
-        for (Player p : players) {
-            if (p.getCurrentTile() == last) {
-                return p;
-            }
+        
+        Tile from = player.getCurrentTile();
+        Tile to = movePlayer(player, lastRoll);
+        notifyPlayerMoved(player, from, to, lastRoll);
+        processActions(player);
+        
+        if (die1 == die2 && !player.isInJail()) {
         }
-        return null;
     }
 
-    /**
-     * Move the player along the board and notify observers.
-     */
-    private void movePlayer(Player player, int steps) {
+    private void processActions(Player player) {
         Tile current = player.getCurrentTile();
-        for (int i = 0; i < steps && current.getNextTile() != null; i++) {
-            current = current.getNextTile();
+        while (current.getAction() != null) {
+            TileAction action = current.getAction();
+            String name = action.getClass().getSimpleName();
+            action.execute(player, this);
+            notifyTileAction(player, name, current);
+            Tile newTile = player.getCurrentTile();
+            if (newTile == current) break;
+            notifyPlayerMoved(player, current, newTile, 0);
+            current = newTile;
+        }
+    }
+
+    /**
+     * Checks if a player is bankrupt and handles elimination.
+     * 
+     * @param player the player to check
+     * @return true if player is bankrupt
+     */
+    public boolean checkBankruptcy(Player player) {
+        if (player.getBalance() < 0) {
+            handleBankruptcy(player);
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Handles player bankruptcy by transferring assets and removing from game.
+     * 
+     * @param bankruptPlayer the player who is bankrupt
+     */
+    private void handleBankruptcy(Player bankruptPlayer) {
+        // Transfer all properties to the bank (make them available again)
+        for (PropertyTile property : bankruptPlayer.getOwnedProperties()) {
+            property.setOwner(null);
+        }
+        for (RailroadTile railroad : bankruptPlayer.getOwnedRailroads()) {
+            railroad.setOwner(null);
+        }
+        for (UtilityTile utility : bankruptPlayer.getOwnedUtilities()) {
+            utility.setOwner(null);
+        }
+        
+        players.remove(bankruptPlayer);
+        
+        if (currentPlayerIndex >= players.size()) {
+            currentPlayerIndex = 0;
+        }
+        
+        checkGameEnd();
+    }
+
+    /**
+     * Checks if the game should end (only one player remaining).
+     */
+    private void checkGameEnd() {
+        if (players.size() == 1) {
+            finished = true;
+            winner = players.get(0);
+            notifyGameEnd(winner);
+        }
+    }
+
+    /**
+     * Processes a rent payment with bankruptcy check.
+     * 
+     * @param payer the player paying rent
+     * @param owner the property owner
+     * @param property the property being rented
+     * @param rentAmount the rent amount
+     */
+    public void processRentPayment(Player payer, Player owner, Tile property, int rentAmount) {
+        int actualPayment = Math.min(rentAmount, payer.getBalance());
+        payer.adjustBalance(-actualPayment);
+        owner.adjustBalance(actualPayment);
+        notifyRentPaid(payer, owner, property, actualPayment);
+        
+        if (payer.getBalance() <= 0) {
+            checkBankruptcy(payer);
+        }
+    }
+
+   /**
+     * Attempts to release a player from jail by paying fine.
+     * 
+     * @param player the player attempting to pay
+     * @return true if successful
+     */
+    public boolean payJailFine(Player player) {
+        if (!player.isInJail()) {
+            return false;
+        }
+        
+        if (player.getBalance() >= 50) {
+            player.adjustBalance(-50);
+            player.releaseFromJail();
+            return true;
+        }
+        return false;
+    }
+
+    /**
+     * Handles a player's turn when in jail.
+     * 
+     * @param player the jailed player
+     * @param die1 first die result
+     * @param die2 second die result
+     * @return true if player rolled doubles and is released
+     */
+    private boolean handleJailTurn(Player player, int die1, int die2) {
+        player.incrementJailTurns();
+        
+        if (die1 == die2) {
+            player.releaseFromJail();
+            return true;
+        }
+        
+        if (player.getJailTurns() >= 3) {
+            if (player.getBalance() >= 50) {
+                player.adjustBalance(-50);
+            }
+            player.releaseFromJail();
+            return true;
+        }
+        
+        return false;
+    }
+
+    private Tile movePlayer(Player player, int steps) {
+        Tile current = player.getCurrentTile();
+        for (int i = 0; i < steps; i++) {
+            Tile next = current.getNextTile();
+            if (next == null) break;
+            current = next;
+            if (current.getId() == board.getFirstTile().getId()) {
+                player.adjustBalance(200);
+                notifyTileAction(player, "GoAction", current);
+            }
         }
         player.setCurrentTile(current);
-
-        if (current.getAction() != null) {
-            current.getAction().execute(player);
-        }
-
-        notifyPlayerMoved(player, current);
+        return current;
     }
 
-    /**
-     * Notify observers that a player has moved.
-     */
-    private void notifyPlayerMoved(Player player, Tile toTile) {
-        for (GameObserver obs : observers) {
-            obs.onPlayerMoved(player, toTile);
-        }
+    // Notifications
+    private void notifyDiceRoll(Player p, int d1, int d2) {
+        observers.forEach(o -> o.onDiceRoll(p, d1, d2));
     }
-
-    /**
-     * Notify observers that the game has finished.
-     */
-    private void notifyGameFinished(Player winner) {
-        for (GameObserver obs : observers) {
-            obs.onGameFinished(winner);
-        }
+    private void notifyPlayerMoved(Player p, Tile f, Tile t, int s) {
+        observers.forEach(o -> o.onPlayerMoved(p, f, t, s));
+    }
+    private void notifyTileAction(Player p, String n, Tile t) {
+        observers.forEach(o -> o.onTileAction(p, n, t));
+    }
+    public void notifyPropertyAvailable(Player p, Tile t) {
+        observers.forEach(o -> o.onPropertyAvailable(p, t));
+    }
+    public void notifyRentPaid(Player payer, Player owner, Tile t, int amt) {
+        observers.forEach(o -> o.onRentPaid(payer, owner, t, amt));
+    }
+    private void notifyPlayerSkipped(Player p) {
+        observers.forEach(o -> o.onPlayerSkipped(p));
+    }
+    private void notifyGameEnd(Player w) {
+        observers.forEach(o -> o.onGameEnd(w));
     }
 }

@@ -1,7 +1,12 @@
-package no.ntnu;
+package no.ntnu.Archive;
+
+import no.ntnu.Player;
+import no.ntnu.action.TileAction;
+import no.ntnu.tile.Tile;
 
 /**
- * Simple example of a TileAction that moves the player to a specific destination tile.
+ * TileAction for moving a player to a specific destination tile,
+ * simulating a ladder in the game.
  */
 public class LadderAction implements TileAction {
     private final Tile destination;

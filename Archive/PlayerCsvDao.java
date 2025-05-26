@@ -1,4 +1,4 @@
-package no.ntnu.io;
+package no.ntnu.Archive;
 
 import no.ntnu.Player;
 import java.nio.file.Files;

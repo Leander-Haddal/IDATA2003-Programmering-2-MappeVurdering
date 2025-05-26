@@ -7,7 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.io.TempDir;
 import no.ntnu.Player;
-import no.ntnu.io.PlayerCsvDao;
+import no.ntnu.Archive.PlayerCsvDao;
 
 class PlayerCsvDaoTest {
     @TempDir Path tempDir;

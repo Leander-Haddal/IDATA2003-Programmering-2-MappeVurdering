@@ -7,7 +7,7 @@ import org.junit.jupiter.api.BeforeAll;
 import org.junit.jupiter.api.Test;
 import no.ntnu.BoardGame;
 import no.ntnu.Dice;
-import no.ntnu.factory.BoardFactory;
+import no.ntnu.Archive.BoardFactory;
 import no.ntnu.ui.GameView;
 
 import static org.junit.jupiter.api.Assertions.*;

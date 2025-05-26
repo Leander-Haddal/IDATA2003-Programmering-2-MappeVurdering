@@ -1,4 +1,4 @@
-package no.ntnu.io;
+package no.ntnu.Archive;
 
 import com.google.gson.JsonArray;
 import com.google.gson.JsonElement;
@@ -6,8 +6,8 @@ import com.google.gson.JsonObject;
 import com.google.gson.JsonParser;
 
 import no.ntnu.Board;
-import no.ntnu.LadderAction;
-import no.ntnu.Tile;
+import no.ntnu.action.SkipTurnAction;
+import no.ntnu.tile.Tile;
 
 import java.nio.file.Files;
 import java.nio.file.Path;
@@ -30,15 +30,12 @@ public class BoardJsonDao {
         JsonArray tilesArray = root.getAsJsonArray("tiles");
 
         Board board = new Board();
-        // Create & register all tiles
         for (JsonElement el : tilesArray) {
             int id = el.getAsJsonObject().get("id").getAsInt();
             board.registerTile(new Tile(id));
         }
-        // Define start tile
         board.setFirstTile(board.getTileById(1));
 
-        // Link nextTile and attach actions
         for (JsonElement el : tilesArray) {
             JsonObject o = el.getAsJsonObject();
             Tile t = board.getTileById(o.get("id").getAsInt());
@@ -52,6 +49,9 @@ public class BoardJsonDao {
                 if ("LadderAction".equals(type)) {
                     int dst = a.get("destinationTileId").getAsInt();
                     t.setAction(new LadderAction(board.getTileById(dst)));
+                }
+                else if ("SkipTurnAction".equals(type)) {
+                    t.setAction(new SkipTurnAction());
                 }
             }
         }

@@ -1,11 +1,13 @@
 import static org.junit.jupiter.api.Assertions.*;
 import no.ntnu.observer.GameObserver;
+import no.ntnu.tile.Tile;
+
 import org.junit.jupiter.api.Test;
-import no.ntnu.factory.BoardFactory;
+
 import no.ntnu.BoardGame;
 import no.ntnu.Dice;
 import no.ntnu.Player;
-import no.ntnu.Tile;
+import no.ntnu.Archive.BoardFactory;
 
 
 class TurnBasedBoardGameTest {
@@ -13,6 +15,7 @@ class TurnBasedBoardGameTest {
     private static class Spy implements GameObserver {
         int movedCount = 0;
         int turnCount = 0;
+        int skipCount = 0; 
         int finishCount = 0;
 
         @Override
@@ -26,6 +29,11 @@ class TurnBasedBoardGameTest {
         }
 
         @Override
+        public void onSkipTurn(Player skipped) {
+            skipCount++;
+        }
+
+        @Override
         public void onGameFinished(Player winner) {
             finishCount++;
         }
@@ -33,9 +41,10 @@ class TurnBasedBoardGameTest {
 
     @Test
     void playTurnCyclesPlayersAndNotifies() {
-        BoardGame game = new BoardGame(BoardFactory.createDefaultBoard(), new Dice(1) {
-            @Override public int rollAll() { return 1; }
-        });
+        BoardGame game = new BoardGame(
+            BoardFactory.createDefaultBoard(),
+            new Dice(1) { @Override public int rollAll() { return 1; } }
+        );
         Player a = new Player("A");
         Player b = new Player("B");
         game.addPlayer(a);

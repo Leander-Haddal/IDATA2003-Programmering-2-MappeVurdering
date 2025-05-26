@@ -2,7 +2,7 @@ import org.junit.jupiter.api.Assertions;
 import org.junit.jupiter.api.Test;
 
 import no.ntnu.Board;
-import no.ntnu.Tile;
+import no.ntnu.tile.Tile;
 
 /**
  * Tests for the Board class.

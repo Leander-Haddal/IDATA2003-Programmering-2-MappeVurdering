@@ -1,7 +1,7 @@
 package no.ntnu.exception;
 
 /**
- * Signals that data (CSV or JSON) is invalid or malformed.
+ * Signals that data is invalid or malformed.
  */
 public class InvalidDataException extends Exception {
 
